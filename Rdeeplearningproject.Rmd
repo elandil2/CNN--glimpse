@@ -1,0 +1,179 @@
+---
+title: "Rdeeplearningprojectbeykoz"
+author: "Safi CENGİZ"
+date: "27 01 2022"
+output:
+  word_document: default
+  html_document: default
+  pdf_document:
+    latex_engine: xelatex
+---
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(keras)
+```
+
+
+```{r}
+## Import the Fashion MNIST Dataset ##
+fashion_mnist <- dataset_fashion_mnist()
+c(train_images, train_labels) %<-% fashion_mnist$train
+c(test_images, test_labels) %<-% fashion_mnist$test
+
+class_names = c('T-shirth',
+               'Trouse/pantalon',
+               'Pullover/süveter',
+               'Dress/elbise',
+               'Coat/kazak',
+               'Sandal',
+               'Shirt',
+               'Sneaker/sporayakkabı',
+               'Bag/çanta',
+               'Ankle boot/çizme')
+
+```
+# There are 10 outputs, we giving names to classes as vector names.
+
+```{r}
+## Data Exploration ##
+
+dim(train_images)
+dim(train_labels)
+dim(test_images)
+dim(test_labels)
+```
+#numbers of test and train data and test data . 28*28 arrays
+
+```{r}
+## Preprocess the Data ##
+library(tidyr)
+library(ggplot2)
+
+## Normalize ##
+train_images <- train_images / 255
+test_images<- test_images / 255
+
+## Plotting code ##
+image_1 <- as.data.frame(train_images[1, , ])
+colnames(image_1) <- seq_len(ncol(image_1))
+image_1$y <- seq_len(nrow(image_1))
+image_1 <- gather(image_1, "x", "value", -y)
+image_1$x <- as.integer(image_1$x)
+
+ggplot(image_1, aes(x = x, y = y, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black", na.value = NA) +
+  scale_y_reverse() +
+  theme_minimal() +
+  theme(panel.grid = element_blank())   +
+  theme(aspect.ratio = 1) +
+  xlab("") +
+  ylab("")
+
+par(mfcol=c(5,5))
+par(mar=c(0, 0, 1.5, 0), xaxs='i', yaxs='i')
+for (i in 1:25) { 
+  img <- train_images[i, , ]
+  img <- t(apply(img, 2, rev)) 
+  image(1:28, 1:28, img, col = gray((0:255)/255), xaxt = 'n', yaxt = 'n',
+        main = paste(class_names[train_labels[i] + 1]))
+}
+```
+#For the model to work properly, these values need to be normalized to the range [0,1]. To perform the conversion we can divide each array by 255.The pixel values across all images range between 0 and 255
+#The Convolution 2D layers we're going to be using expect a 4 dimensional array (tensor) as input to accomodate the notion of images having channels. In our case, our images are grayscale and therefore only have one channel in the channel dimension. Our data must nonetheless be reshaped to shape (samples, rows, cols, channels).
+
+```{r}
+## Build the Model ##
+model <- keras_model_sequential()
+model %>% 
+  layer_flatten(input_shape = c(28 ,28)) %>% 
+  layer_dense(units = 128, activation = 'relu') %>% 
+  layer_dense(units = 10, activation = 'softmax')
+summary(model)
+```
+#Add a densely-connected NN layer to an output, Flattens an input
+
+```{r}
+## Compile the Model ##
+model %>% compile(
+  optimizer = 'adam', 
+  loss = 'sparse_categorical_crossentropy',
+  metrics = c('accuracy')
+)
+summary(model)
+
+```
+
+
+```{r error=TRUE}
+## Train and Evaluate the Model ##
+model %>% fit(
+  train_images, train_labels,
+  epochs = 10, validation_split=0.2)
+
+score <- model %>% evaluate(test_images, test_labels)
+
+cat('Test loss:', score$loss, "\n")
+cat('Test accuracy:', score$acc, "\n")
+
+
+```
+# The loss is calculated on training and validation and its interpretation is based on how well the model is doing in these two sets. It is the sum of errors made for each example in training or validation sets.
+```{r}
+##Make Predictions on Test Data ##
+predictions <- model %>% predict(test_images)
+predictions[1, ]
+
+which.max(predictions[1, ])
+class_pred <- model %>% predict_classes(test_images)
+class_pred[1:20]
+test_labels[1]
+
+```
+
+```{r}
+## Plot Images with Predictions ##
+
+par(mfcol=c(5,5))
+par(mar=c(0, 0, 1.5, 0), xaxs='i', yaxs='i')
+for (i in 1:25) { 
+  img <- test_images[i, , ]
+  img <- t(apply(img, 2, rev)) 
+  # subtract 1 as labels go from 0 to 9
+  predicted_label <- which.max(predictions[i, ]) - 1
+  true_label <- test_labels[i]
+  if (predicted_label == true_label) {
+    color <- '#008800' 
+  } else {
+    color <- '#bb0000'
+  }
+  image(1:28, 1:28, img, col = gray((0:255)/255), xaxt = 'n', yaxt = 'n',
+        main = paste0(class_names[predicted_label + 1], " (",
+                      class_names[true_label + 1], ")"),
+        col.main = color)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
